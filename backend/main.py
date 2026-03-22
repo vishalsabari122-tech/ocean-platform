@@ -6,7 +6,13 @@ from database import get_db, engine
 import models
 from models import SpeciesObservation, OceanographyReading, FisheriesCatch
 
-models.Base.metadata.create_all(bind=engine)
+def init_db():
+    with engine.connect() as conn:
+        conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+        conn.commit()
+    models.Base.metadata.create_all(bind=engine)
+
+init_db()
 
 app = FastAPI(title="Ocean Platform API", version="0.3.0")
 
