@@ -1,0 +1,95 @@
+services:
+  - type: web
+    name: ocean-platform-api
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ocean-db
+          property: connectionString
+      - key: GROQ_API_KEY
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: PYTHON_VERSION
+        value: 3.11.9
+
+databases:
+  - name: ocean-db
+    databaseName: ocean_db
+    user: ocean_user
+    plan: free
+```
+
+---
+
+### Step 2 — Add a free Redis on Upstash
+
+Render doesn't have free Redis — we'll use Upstash which has a free tier.
+
+Go to `https://upstash.com` → **Sign up** → **Continue with GitHub** → authorize.
+
+Once logged in:
+1. Click **Create database**
+2. Name it `ocean-redis`
+3. Select region **US-East-1** (or closest to you)
+4. Click **Create**
+
+Once created click on it → scroll down to **REST API** section → copy the **`UPSTASH_REDIS_REST_URL`** — but we actually need the **Redis connection string**. Click **Details** tab → copy the value under **Redis Connect** — it looks like:
+```
+rediss://default:xxxxxxxxxxxx@us1-xxxxx.upstash.io:6379
+```
+
+Save that. We'll paste it into Render as `REDIS_URL`.
+
+---
+
+### Step 3 — Sign up for Render
+
+Go to `https://render.com` → **Get Started for Free** → **GitHub** → authorize Render.
+
+---
+
+### Step 4 — Create the PostgreSQL database first
+
+On the Render dashboard:
+1. Click **New +** → **PostgreSQL**
+2. Name: `ocean-db`
+3. Database: `ocean_db`
+4. User: `ocean_user`
+5. Region: **Singapore** (closest to India)
+6. Plan: **Free**
+7. Click **Create Database**
+
+Wait 1-2 minutes for it to provision. Then click on it and copy the **Internal Database URL** — it looks like:
+```
+postgresql://ocean_user:xxxx@dpg-xxxx/ocean_db
+```
+
+---
+
+### Step 5 — Create the Web Service
+
+1. Click **New +** → **Web Service**
+2. Connect your `ocean-platform` GitHub repo
+3. Fill in these settings:
+```
+Name:           ocean-platform-api
+Region:         Singapore
+Branch:         main
+Root Directory: backend
+Runtime:        Python 3
+Build Command:  pip install -r requirements.txt
+Start Command:  uvicorn main:app --host 0.0.0.0 --port $PORT
+Plan:           Free
+```
+
+4. Scroll down to **Environment Variables** — add these:
+```
+DATABASE_URL   = (paste the Internal Database URL from Step 4)
+REDIS_URL      = (paste the Upstash Redis URL from Step 2)
+GROQ_API_KEY   = (your Groq API key)
+PYTHON_VERSION = 3.11.9
