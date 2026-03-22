@@ -1,0 +1,21 @@
+date,lat,lon,species_name,common_name,abundance,habitat_type,survey_method,depth_m
+2024-01-15,36.5,-122.3,Megaptera novaeangliae,Humpback whale,3,pelagic,visual_survey,0
+2024-01-15,36.8,-122.1,Delphinus delphis,Common dolphin,45,pelagic,visual_survey,0
+2024-01-16,35.9,-121.8,Zalophus californianus,California sea lion,12,coastal,visual_survey,5
+2024-01-16,37.2,-122.8,Phalacrocorax penicillatus,Brandt cormorant,28,coastal,visual_survey,0
+2024-01-17,36.1,-122.0,Megaptera novaeangliae,Humpback whale,2,pelagic,acoustic,0
+2024-01-17,35.5,-121.5,Tursiops truncatus,Bottlenose dolphin,8,coastal,visual_survey,0
+2024-01-18,37.5,-123.1,Balaenoptera physalus,Fin whale,1,pelagic,acoustic,0
+2024-01-18,36.3,-122.5,Zalophus californianus,California sea lion,19,coastal,visual_survey,3
+2024-01-19,35.7,-121.9,Delphinus delphis,Common dolphin,67,pelagic,visual_survey,0
+2024-01-19,37.0,-122.9,Phalacrocorax penicillatus,Brandt cormorant,41,coastal,visual_survey,0
+2024-01-20,36.6,-122.4,Megaptera novaeangliae,Humpback whale,4,pelagic,visual_survey,0
+2024-01-20,35.8,-121.7,Tursiops truncatus,Bottlenose dolphin,15,coastal,visual_survey,0
+2024-01-21,37.3,-123.0,Balaenoptera physalus,Fin whale,2,pelagic,acoustic,0
+2024-01-21,36.0,-122.2,Zalophus californianus,California sea lion,23,coastal,visual_survey,8
+2024-01-22,35.6,-121.6,Delphinus delphis,Common dolphin,89,pelagic,visual_survey,0
+2024-01-22,37.1,-122.7,Megaptera novaeangliae,Humpback whale,5,pelagic,visual_survey,0
+2024-01-23,36.4,-122.3,Tursiops truncatus,Bottlenose dolphin,11,coastal,visual_survey,0
+2024-01-23,35.4,-121.4,Zalophus californianus,California sea lion,31,coastal,visual_survey,4
+2024-01-24,37.4,-123.2,Balaenoptera physalus,Fin whale,1,pelagic,acoustic,0
+2024-01-24,36.2,-122.1,Delphinus delphis,Common dolphin,54,pelagic,visual_survey,0

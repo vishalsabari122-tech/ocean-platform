@@ -1,0 +1,53 @@
+services:
+
+  postgres:
+    image: postgis/postgis:16-3.4
+    container_name: ocean_postgres
+    environment:
+      POSTGRES_USER: ocean_user
+      POSTGRES_PASSWORD: ocean_pass
+      POSTGRES_DB: ocean_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: ocean_redis
+    ports:
+      - "6379:6379"
+
+  api:
+    build: ./backend
+    container_name: ocean_api
+    environment:
+      - DATABASE_URL=postgresql://ocean_user:ocean_pass@postgres:5432/ocean_db
+      - REDIS_URL=redis://redis:6379/0
+           
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    restart: on-failure
+
+  worker:
+    build: ./backend
+    container_name: ocean_worker
+    command: celery -A celery_app worker --loglevel=info
+    environment:
+      - DATABASE_URL=postgresql://ocean_user:ocean_pass@postgres:5432/ocean_db
+      - REDIS_URL=redis://redis:6379/0
+      
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - postgres
+      - redis
+    restart: on-failure
+
+volumes:
+  postgres_data:

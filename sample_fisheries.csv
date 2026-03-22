@@ -1,0 +1,21 @@
+date,lat,lon,species_name,catch_kg,effort_hours,vessel_id,gear_type,fishing_zone
+2024-01-15,36.5,-122.3,Thunnus albacares,450.5,8.5,VESSEL_001,longline,Zone_A
+2024-01-15,36.8,-122.1,Engraulis mordax,1200.0,6.0,VESSEL_002,purse_seine,Zone_A
+2024-01-16,35.9,-121.8,Thunnus albacares,380.2,9.0,VESSEL_001,longline,Zone_B
+2024-01-16,37.2,-122.8,Sebastes mystinus,95.3,12.0,VESSEL_003,trawl,Zone_C
+2024-01-17,36.1,-122.0,Engraulis mordax,980.0,5.5,VESSEL_002,purse_seine,Zone_B
+2024-01-17,35.5,-121.5,Thunnus albacares,520.8,7.5,VESSEL_004,longline,Zone_B
+2024-01-18,37.5,-123.1,Sebastes mystinus,45.2,14.0,VESSEL_003,trawl,Zone_C
+2024-01-18,36.3,-122.5,Sardinops sagax,2100.0,4.0,VESSEL_005,purse_seine,Zone_A
+2024-01-19,35.7,-121.9,Thunnus albacares,610.3,8.0,VESSEL_001,longline,Zone_B
+2024-01-19,37.0,-122.9,Sebastes mystinus,38.7,15.0,VESSEL_003,trawl,Zone_C
+2024-01-20,36.6,-122.4,Engraulis mordax,1450.0,6.5,VESSEL_002,purse_seine,Zone_A
+2024-01-20,35.8,-121.7,Thunnus albacares,290.1,10.0,VESSEL_004,longline,Zone_B
+2024-01-21,37.3,-123.0,Sebastes mystinus,28.4,16.0,VESSEL_003,trawl,Zone_C
+2024-01-21,36.0,-122.2,Sardinops sagax,1800.0,4.5,VESSEL_005,purse_seine,Zone_A
+2024-01-22,35.6,-121.6,Thunnus albacares,680.5,7.0,VESSEL_001,longline,Zone_B
+2024-01-22,37.1,-122.7,Sebastes mystinus,18.9,18.0,VESSEL_003,trawl,Zone_C
+2024-01-23,36.4,-122.3,Engraulis mordax,1650.0,5.0,VESSEL_002,purse_seine,Zone_A
+2024-01-23,35.4,-121.4,Thunnus albacares,720.2,7.5,VESSEL_004,longline,Zone_B
+2024-01-24,37.4,-123.2,Sebastes mystinus,12.3,20.0,VESSEL_003,trawl,Zone_C
+2024-01-24,36.2,-122.1,Sardinops sagax,2400.0,3.5,VESSEL_005,purse_seine,Zone_A
