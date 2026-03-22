@@ -7,13 +7,18 @@ import models
 from models import SpeciesObservation, OceanographyReading, FisheriesCatch
 
 def init_db():
-    with engine.connect() as conn:
-        conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
-        conn.commit()
-    models.Base.metadata.create_all(bind=engine)
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
+            conn.commit()
+    except Exception as e:
+        print(f"PostGIS not available: {e} — using plain PostgreSQL")
+    try:
+        models.Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Table creation error: {e}")
 
 init_db()
-
 app = FastAPI(title="Ocean Platform API", version="0.3.0")
 
 app.add_middleware(
