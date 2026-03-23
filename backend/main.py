@@ -6,20 +6,9 @@ from database import get_db, engine
 import models
 from models import SpeciesObservation, OceanographyReading, FisheriesCatch
 
+models.Base.metadata.create_all(bind=engine)
 def init_db():
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis"))
-            conn.commit()
-    except Exception as e:
-        print(f"PostGIS not available: {e} — using plain PostgreSQL")
-    try:
-        models.Base.metadata.create_all(bind=engine)
-    except Exception as e:
-        print(f"Table creation error: {e}")
-
-init_db()
-app = FastAPI(title="Ocean Platform API", version="0.3.0")
+    app = FastAPI(title="Ocean Platform API", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -149,67 +138,35 @@ def predict_habitat():
 
 @app.get("/map/species")
 def map_species(db: Session = Depends(get_db)):
-    """All species observations with real GPS coordinates."""
     result = db.execute(text("""
-        SELECT
-            id,
-            species_name,
-            common_name,
-            depth_m,
-            dataset,
-            observed_at,
-            ST_Y(location) as lat,
-            ST_X(location) as lon
+        SELECT id, species_name, common_name, depth_m, dataset, observed_at, lat, lon
         FROM species_observations
-        WHERE location IS NOT NULL
-        ORDER BY observed_at DESC
-        LIMIT 1000
+        WHERE lat IS NOT NULL AND lon IS NOT NULL
+        ORDER BY observed_at DESC LIMIT 1000
     """)).mappings().fetchall()
     return {"count": len(result), "points": [dict(r) for r in result]}
 
 @app.get("/map/oceanography")
 def map_oceanography(db: Session = Depends(get_db)):
-    """Oceanography readings with real GPS coordinates."""
     result = db.execute(text("""
-        SELECT
-            id,
-            temperature_c,
-            salinity_ppt,
-            chlorophyll,
-            depth_m,
-            dissolved_oxygen,
-            recorded_at,
-            ST_Y(location) as lat,
-            ST_X(location) as lon
+        SELECT id, temperature_c, salinity_ppt, chlorophyll,
+               depth_m, dissolved_oxygen, recorded_at, lat, lon
         FROM oceanography_readings
-        WHERE location IS NOT NULL
-        ORDER BY recorded_at DESC
-        LIMIT 500
+        WHERE lat IS NOT NULL AND lon IS NOT NULL
+        ORDER BY recorded_at DESC LIMIT 500
     """)).mappings().fetchall()
     return {"count": len(result), "points": [dict(r) for r in result]}
 
 @app.get("/map/fisheries")
 def map_fisheries(db: Session = Depends(get_db)):
-    """Fisheries catch locations with real GPS coordinates."""
     result = db.execute(text("""
-        SELECT
-            id,
-            species_name,
-            catch_kg,
-            effort_hours,
-            fishing_zone,
-            gear_type,
-            caught_at,
-            ST_Y(location) as lat,
-            ST_X(location) as lon
+        SELECT id, species_name, catch_kg, effort_hours,
+               fishing_zone, gear_type, caught_at, lat, lon
         FROM fisheries_catches
-        WHERE location IS NOT NULL
-        ORDER BY caught_at DESC
-        LIMIT 500
+        WHERE lat IS NOT NULL AND lon IS NOT NULL
+        ORDER BY caught_at DESC LIMIT 500
     """)).mappings().fetchall()
     return {"count": len(result), "points": [dict(r) for r in result]}
-
-
 # ── Time-series endpoints ─────────────────────────────────
 
 @app.get("/timeseries/temperature")

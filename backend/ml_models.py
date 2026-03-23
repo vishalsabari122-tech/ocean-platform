@@ -25,13 +25,10 @@ def get_training_data() -> pd.DataFrame:
                 EXTRACT(DOY FROM f.caught_at) as day_of_year
             FROM fisheries_catches f
             LEFT JOIN oceanography_readings o ON (
-                o.location IS NOT NULL
-                AND f.location IS NOT NULL
-                AND ST_DWithin(
-                    f.location::geography,
-                    o.location::geography,
-                    100000
-                )
+                f.lat IS NOT NULL
+                AND o.lat IS NOT NULL
+                AND ABS(f.lat - o.lat) < 1.0
+                AND ABS(f.lon - o.lon) < 1.0
             )
             WHERE f.effort_hours > 0 AND f.catch_kg IS NOT NULL
             LIMIT 5000
@@ -84,10 +81,10 @@ def train_stock_model():
             }
 
         df = df.fillna({
-            "temperature_c": df.get("temperature_c", pd.Series()).median() if "temperature_c" in df else 15.0,
-            "salinity_ppt": df.get("salinity_ppt", pd.Series()).median() if "salinity_ppt" in df else 34.0,
-            "chlorophyll": df.get("chlorophyll", pd.Series()).median() if "chlorophyll" in df else 2.0,
-            "dissolved_oxygen": df.get("dissolved_oxygen", pd.Series()).median() if "dissolved_oxygen" in df else 7.5,
+            "temperature_c": df["temperature_c"].median() if "temperature_c" in df and df["temperature_c"].notna().any() else 15.0,
+            "salinity_ppt": df["salinity_ppt"].median() if "salinity_ppt" in df and df["salinity_ppt"].notna().any() else 34.0,
+            "chlorophyll": df["chlorophyll"].median() if "chlorophyll" in df and df["chlorophyll"].notna().any() else 2.0,
+            "dissolved_oxygen": df["dissolved_oxygen"].median() if "dissolved_oxygen" in df and df["dissolved_oxygen"].notna().any() else 7.5,
             "month": 6,
             "day_of_year": 180,
         })
@@ -106,7 +103,9 @@ def train_stock_model():
         y = df["cpue"].astype(float)
 
         if len(df) >= 6:
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
         else:
             X_train, X_test, y_train, y_test = X, X, y, y
 
@@ -142,6 +141,7 @@ def train_stock_model():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
 def predict_stock_health():
     """Predict stock health per species per zone using trained model."""
     try:
@@ -155,15 +155,20 @@ def predict_stock_health():
             return {"status": "insufficient_data", "message": "Need more fisheries data."}
 
         df = df.fillna({
-            "temperature_c": 15.0, "salinity_ppt": 34.0,
-            "chlorophyll": 2.0, "dissolved_oxygen": 7.5,
-            "month": 6, "day_of_year": 180,
+            "temperature_c": 15.0,
+            "salinity_ppt": 34.0,
+            "chlorophyll": 2.0,
+            "dissolved_oxygen": 7.5,
+            "month": 6,
+            "day_of_year": 180,
         })
 
         le_species = LabelEncoder()
         le_zone = LabelEncoder()
         df["species_enc"] = le_species.fit_transform(df["species_name"].astype(str))
-        df["zone_enc"] = le_zone.fit_transform(df["fishing_zone"].astype(str).fillna("unknown"))
+        df["zone_enc"] = le_zone.fit_transform(
+            df["fishing_zone"].astype(str).fillna("unknown")
+        )
 
         feature_cols = ["species_enc", "zone_enc", "effort_hours", "month", "day_of_year"]
         for col in ["temperature_c", "salinity_ppt", "chlorophyll", "dissolved_oxygen"]:
@@ -173,7 +178,10 @@ def predict_stock_health():
         X = df[feature_cols].astype(float)
         y = df["cpue"].astype(float)
 
-        model = XGBRegressor(n_estimators=100, max_depth=4, learning_rate=0.1, random_state=42, verbosity=0)
+        model = XGBRegressor(
+            n_estimators=100, max_depth=4,
+            learning_rate=0.1, random_state=42, verbosity=0
+        )
         model.fit(X, y)
 
         groups = df.groupby(["species_name", "fishing_zone"]).agg({
@@ -239,6 +247,7 @@ def predict_stock_health():
     except Exception as e:
         return {"status": "error", "message": str(e)}
 
+
 def predict_habitat_suitability():
     """Score each zone's habitat suitability for each observed species."""
     try:
@@ -253,13 +262,10 @@ def predict_habitat_suitability():
                 COUNT(s.id) as sightings
             FROM species_observations s
             JOIN oceanography_readings o ON (
-                s.location IS NOT NULL
-                AND o.location IS NOT NULL
-                AND ST_DWithin(
-                    s.location::geography,
-                    o.location::geography,
-                    100000
-                )
+                s.lat IS NOT NULL
+                AND o.lat IS NOT NULL
+                AND ABS(s.lat - o.lat) < 1.0
+                AND ABS(s.lon - o.lon) < 1.0
             )
             WHERE s.species_name IS NOT NULL
             GROUP BY s.species_name, s.common_name
@@ -287,27 +293,45 @@ def predict_habitat_suitability():
                 "species_summary": [dict(r) for r in fallback]
             }
 
-        zones_result = SessionLocal()
-        zones = zones_result.execute(text("""
+        db3 = SessionLocal()
+        zones = db3.execute(text("""
             SELECT DISTINCT fishing_zone,
                 AVG(o.temperature_c) OVER (PARTITION BY f.fishing_zone) as zone_temp,
                 AVG(o.salinity_ppt) OVER (PARTITION BY f.fishing_zone) as zone_salinity,
                 AVG(o.chlorophyll) OVER (PARTITION BY f.fishing_zone) as zone_chlorophyll
             FROM fisheries_catches f
-            JOIN oceanography_readings o ON
-                ST_DWithin(f.location::geography, o.location::geography, 100000)
-            WHERE f.fishing_zone IS NOT NULL LIMIT 20
+            JOIN oceanography_readings o ON (
+                f.lat IS NOT NULL
+                AND o.lat IS NOT NULL
+                AND ABS(f.lat - o.lat) < 1.0
+                AND ABS(f.lon - o.lon) < 1.0
+            )
+            WHERE f.fishing_zone IS NOT NULL
+            LIMIT 20
         """)).mappings().fetchall()
-        zones_result.close()
+        db3.close()
 
         zone_data = [dict(z) for z in zones]
+
+        if not zone_data:
+            return {
+                "status": "partial",
+                "message": "No zone-oceanography overlap found. Upload fisheries and oceanography CSVs from the same region.",
+                "species_summary": species_prefs[:10]
+            }
 
         habitat_scores = []
         for sp in species_prefs:
             for zone in zone_data:
-                temp_diff = abs((sp.get("pref_temp") or 15) - (zone.get("zone_temp") or 15))
-                sal_diff = abs((sp.get("pref_salinity") or 34) - (zone.get("zone_salinity") or 34))
-                chl_diff = abs((sp.get("pref_chlorophyll") or 2) - (zone.get("zone_chlorophyll") or 2))
+                temp_diff = abs(
+                    (sp.get("pref_temp") or 15) - (zone.get("zone_temp") or 15)
+                )
+                sal_diff = abs(
+                    (sp.get("pref_salinity") or 34) - (zone.get("zone_salinity") or 34)
+                )
+                chl_diff = abs(
+                    (sp.get("pref_chlorophyll") or 2) - (zone.get("zone_chlorophyll") or 2)
+                )
 
                 score = max(0, 100 - (temp_diff * 5) - (sal_diff * 2) - (chl_diff * 3))
                 score = round(score, 1)

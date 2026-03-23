@@ -53,7 +53,8 @@ def correlate_temperature_catch() -> dict:
                 ROUND(AVG(o.temperature_c)::numeric, 2) as avg_temp
             FROM oceanography_readings o
             JOIN fisheries_catches f ON (
-                ST_DWithin(o.location::geography, f.location::geography, 50000)
+                ABS(o.lat - f.lat) < 0.5
+                AND ABS(o.lon - f.lon) < 0.5
                 AND ABS(EXTRACT(EPOCH FROM (o.recorded_at - f.caught_at))) < 86400
             )
             WHERE o.temperature_c IS NOT NULL AND f.catch_kg IS NOT NULL
@@ -64,10 +65,9 @@ def correlate_temperature_catch() -> dict:
         if not result:
             return {
                 "status": "no_overlap",
-                "message": "No spatial/temporal overlap between oceanography and fisheries data yet.",
-                "tip": "Ensure your CSVs have overlapping lat/lon coordinates and dates."
+                "message": "No spatial overlap between oceanography and fisheries data yet.",
+                "tip": "Upload CSVs with overlapping lat/lon coordinates and dates."
             }
-
         return {
             "status": "success",
             "insight": "Temperature vs catch rate correlation",
@@ -91,7 +91,8 @@ def correlate_species_environment() -> dict:
                 ROUND(AVG(o.chlorophyll)::numeric, 2) as avg_chlorophyll
             FROM species_observations s
             JOIN oceanography_readings o ON (
-                ST_DWithin(s.location::geography, o.location::geography, 50000)
+                ABS(s.lat - o.lat) < 0.5
+                AND ABS(s.lon - o.lon) < 0.5
                 AND ABS(EXTRACT(EPOCH FROM (s.observed_at - o.recorded_at))) < 86400
             )
             WHERE s.species_name IS NOT NULL
@@ -104,9 +105,8 @@ def correlate_species_environment() -> dict:
             return {
                 "status": "no_overlap",
                 "message": "No overlap between biodiversity and oceanography data yet.",
-                "tip": "Upload oceanography and biodiversity CSVs covering the same region."
+                "tip": "Upload CSVs from the same region."
             }
-
         return {
             "status": "success",
             "insight": "Species environmental preferences",
@@ -129,10 +129,8 @@ def predict_fishing_pressure() -> dict:
                 ROUND(SUM(effort_hours)::numeric, 2) as total_effort_hours,
                 ROUND((SUM(catch_kg) / NULLIF(SUM(effort_hours), 0))::numeric, 3) as cpue,
                 CASE
-                    WHEN (SUM(catch_kg) / NULLIF(SUM(effort_hours), 0)) < 50
-                        THEN 'overfished'
-                    WHEN (SUM(catch_kg) / NULLIF(SUM(effort_hours), 0)) < 150
-                        THEN 'moderate'
+                    WHEN (SUM(catch_kg) / NULLIF(SUM(effort_hours), 0)) < 50 THEN 'overfished'
+                    WHEN (SUM(catch_kg) / NULLIF(SUM(effort_hours), 0)) < 150 THEN 'moderate'
                     ELSE 'healthy'
                 END as stock_status
             FROM fisheries_catches
@@ -143,12 +141,7 @@ def predict_fishing_pressure() -> dict:
         """)).mappings().fetchall()
 
         if not result:
-            return {
-                "status": "no_data",
-                "message": "No fisheries data with zone and effort information yet.",
-                "tip": "Upload a fisheries CSV with fishing_zone and effort_hours columns."
-            }
-
+            return {"status": "no_data", "message": "No fisheries data yet."}
         return {
             "status": "success",
             "insight": "Fishing pressure by zone (CPUE = catch kg per effort hour)",
