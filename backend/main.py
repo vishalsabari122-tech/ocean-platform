@@ -6,8 +6,20 @@ from database import get_db, engine
 import models
 from models import SpeciesObservation, OceanographyReading, FisheriesCatch
 
-models.Base.metadata.create_all(bind=engine)
+# Run migrations to add lat/lon columns if they don't exist
+def run_migrations():
+    with engine.connect() as conn:
+        for table in ["species_observations", "oceanography_readings", "fisheries_catches"]:
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS lat FLOAT"))
+            conn.execute(text(f"ALTER TABLE {table} ADD COLUMN IF NOT EXISTS lon FLOAT"))
+        conn.commit()
 
+try:
+    run_migrations()
+except Exception as e:
+    print(f"Migration note: {e}")
+
+models.Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Ocean Platform API", version="0.3.1")
 
 app.add_middleware(
