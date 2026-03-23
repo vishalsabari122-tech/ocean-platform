@@ -7,8 +7,8 @@ import models
 from models import SpeciesObservation, OceanographyReading, FisheriesCatch
 
 models.Base.metadata.create_all(bind=engine)
-def init_db():
-    app = FastAPI(title="Ocean Platform API", version="0.3.0")
+
+app = FastAPI(title="Ocean Platform API", version="0.3.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -16,7 +16,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 @app.get("/")
 def root():
     return {"status": "Ocean Platform API running", "version": "0.3.0"}
