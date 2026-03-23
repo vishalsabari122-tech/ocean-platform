@@ -8,7 +8,7 @@ from models import SpeciesObservation, OceanographyReading, FisheriesCatch
 
 models.Base.metadata.create_all(bind=engine)
 
-app = FastAPI(title="Ocean Platform API", version="0.3.0")
+app = FastAPI(title="Ocean Platform API", version="0.3.1")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,7 +18,7 @@ app.add_middleware(
 )
 @app.get("/")
 def root():
-    return {"status": "Ocean Platform API running", "version": "0.3.0"}
+    return {"status": "Ocean Platform API running", "version": "0.3.1"}
 
 @app.get("/health")
 def health(db: Session = Depends(get_db)):
