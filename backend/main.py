@@ -5,6 +5,8 @@ from sqlalchemy import text
 from database import get_db, engine
 import models
 from models import SpeciesObservation, OceanographyReading, FisheriesCatch
+import auth_models
+from auth_routes import router as auth_router
 
 # Run migrations to add lat/lon columns if they don't exist
 def run_migrations():
@@ -19,7 +21,7 @@ try:
 except Exception as e:
     print(f"Migration note: {e}")
 
-models.Base.metadata.create_all(bind=engine)
+auth_models.Base.metadata.create_all(bind=engine)
 app = FastAPI(title="Ocean Platform API", version="0.3.1")
 
 app.add_middleware(
@@ -28,6 +30,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(auth_router)
 @app.get("/")
 def root():
     return {"status": "Ocean Platform API running", "version": "0.3.1"}
