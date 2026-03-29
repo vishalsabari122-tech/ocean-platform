@@ -1,4 +1,12 @@
 "use client";
+// Auth check — redirect to login if not authenticated
+useEffect(() => {
+  const token = localStorage.getItem("ocean_token");
+  if (!token) {
+    window.location.href = "/login";
+  }
+}, []);
+
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import axios from "axios";
@@ -94,6 +102,21 @@ export default function Home() {
             }`}>
             {tab.label}
           </button>
+          <button
+            onClick={() => {
+            localStorage.removeItem("ocean_token");
+            localStorage.removeItem("ocean_user");
+            window.location.href = "/login";
+            }}
+            style={{
+                marginTop: "auto", padding: "8px 16px", background: "#0d9488",
+                color: "#fff", border: "none", borderRadius: 6, cursor: "pointer",
+                fontSize: 12, width: "100%"
+            }}
+            >
+              Sign Out  
+          </button>
+
         ))}
 
         {/* Domain status */}
