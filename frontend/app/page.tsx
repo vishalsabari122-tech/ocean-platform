@@ -1,33 +1,8 @@
 "use client";
-const [authChecked, setAuthChecked] = useState(false);
 
-useEffect(() => {
-  const token = localStorage.getItem("ocean_token");
-  if (!token) {
-    window.location.replace("/login");
-  } else {
-    setAuthChecked(true);
-  }
-}, []);
-
-if (!authChecked) {
-  return (
-    <div style={{
-      minHeight: "100vh", background: "#021526",
-      display: "flex", alignItems: "center", justifyContent: "center",
-      color: "#2dd4bf", fontSize: 18, fontFamily: "sans-serif"
-    }}>
-      <div style={{ textAlign: "center" }}>
-        <div style={{ fontSize: 40, marginBottom: 12 }}>🌊</div>
-        <div>Loading OceanAI...</div>
-      </div>
-    </div>
-  );
-}
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import axios from "axios";
-import { useState, useEffect } from "react";
 
 const OceanMap = dynamic(() => import("./components/OceanMap"), { ssr: false });
 const TimeSeriesCharts = dynamic(() => import("./components/TimeSeriesCharts"), { ssr: false });
@@ -35,6 +10,7 @@ const TimeSeriesCharts = dynamic(() => import("./components/TimeSeriesCharts"), 
 const API = axios.create({ baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000" });
 
 export default function Home() {
+  const [authChecked, setAuthChecked] = useState(false);
   const [summary, setSummary] = useState<any>(null);
   const [crossDomain, setCrossDomain] = useState<any>(null);
   const [anomalies, setAnomalies] = useState<any>(null);
@@ -51,8 +27,19 @@ export default function Home() {
   const [stockPredictions, setStockPredictions] = useState<any>(null);
   const [habitatScores, setHabitatScores] = useState<any>(null);
 
-
+  // ── Auth check ────────────────────────────────────────────────────────────
   useEffect(() => {
+    const token = localStorage.getItem("ocean_token");
+    if (!token) {
+      window.location.replace("/login");
+    } else {
+      setAuthChecked(true);
+    }
+  }, []);
+
+  // ── Data fetching ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!authChecked) return;
     API.get("/ai/summary").then(r => setSummary(r.data));
     API.get("/ai/anomalies").then(r => setAnomalies(r.data));
     API.get("/observations").then(r => setObservations(r.data.results || []));
@@ -62,8 +49,30 @@ export default function Home() {
     API.get("/correlations/species-environment").then(r => setSpeciesEnv(r.data));
     API.get("/ml/predict/stock").then(r => setStockPredictions(r.data));
     API.get("/ml/predict/habitat").then(r => setHabitatScores(r.data));
-  }, []);
+  }, [authChecked]);
 
+  // ── Loading screen while auth check runs ─────────────────────────────────
+  if (!authChecked) {
+    return (
+      <div style={{
+        minHeight: "100vh",
+        background: "#021526",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: "#2dd4bf",
+        fontSize: 18,
+        fontFamily: "sans-serif",
+      }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🌊</div>
+          <div>Loading OceanAI...</div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
   const handleAsk = async () => {
     if (!question.trim()) return;
     setAsking(true);
@@ -71,7 +80,9 @@ export default function Home() {
     try {
       const r = await API.post(`/ai/ask?question=${encodeURIComponent(question)}`);
       setAnswer(r.data);
-    } catch { setAnswer({ error: "Failed" }); }
+    } catch {
+      setAnswer({ error: "Failed" });
+    }
     setAsking(false);
   };
 
@@ -82,24 +93,21 @@ export default function Home() {
     form.append("file", file);
     try {
       const r = await API.post(`/upload/${domain}`, form, {
-        headers: { "Content-Type": "multipart/form-data" }
+        headers: { "Content-Type": "multipart/form-data" },
       });
       setUploadResult({ domain, ...r.data });
       API.get("/correlations/summary").then(r => setCrossDomain(r.data));
-    } catch { setUploadResult({ domain, error: "Upload failed" }); }
+    } catch {
+      setUploadResult({ domain, error: "Upload failed" });
+    }
     setUploading(null);
   };
 
-  const tabs = [
-    { id: "dashboard", label: "Dashboard" },
-    { id: "correlations", label: "Correlations" },
-    { id: "map", label: "Species Map" },
-    { id: "trends", label: "Trends" },
-    { id: "anomalies", label: "Anomalies" },
-    { id: "predictions", label: "ML Predictions" },
-    { id: "upload", label: "Upload Data" },
-    { id: "ai", label: "AI Assistant" },
-  ];
+  const handleSignOut = () => {
+    localStorage.removeItem("ocean_token");
+    localStorage.removeItem("ocean_user");
+    window.location.href = "/login";
+  };
 
   const statusColor = (status: string) => {
     if (status === "overfished") return "text-red-400";
@@ -107,38 +115,59 @@ export default function Home() {
     return "text-green-400";
   };
 
+  const tabs = [
+    { id: "dashboard",    label: "Dashboard" },
+    { id: "correlations", label: "Correlations" },
+    { id: "map",          label: "Species Map" },
+    { id: "trends",       label: "Trends" },
+    { id: "anomalies",    label: "Anomalies" },
+    { id: "predictions",  label: "ML Predictions" },
+    { id: "upload",       label: "Upload Data" },
+    { id: "ai",           label: "AI Assistant" },
+  ];
+
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="flex h-screen bg-gray-950 text-white overflow-hidden">
 
-      {/* Sidebar */}
+      {/* ── Sidebar ─────────────────────────────────────────────────────── */}
       <div className="w-52 bg-gray-900 border-r border-gray-800 flex flex-col p-4 gap-1">
         <div className="text-teal-400 font-bold text-lg mb-4 mt-2">OceanAI</div>
+
         {tabs.map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
             className={`text-left px-3 py-2 rounded-lg text-sm transition-all ${
-              activeTab === tab.id ? "bg-teal-600 text-white" : "text-gray-400 hover:bg-gray-800"
-            }`}>
+              activeTab === tab.id
+                ? "bg-teal-600 text-white"
+                : "text-gray-400 hover:bg-gray-800"
+            }`}
+          >
             {tab.label}
           </button>
-          <button
-            onClick={() => {
-            localStorage.removeItem("ocean_token");
-            localStorage.removeItem("ocean_user");
-            window.location.href = "/login";
-            }}
-            style={{
-                marginTop: "auto", padding: "8px 16px", background: "#0d9488",
-                color: "#fff", border: "none", borderRadius: 6, cursor: "pointer",
-                fontSize: 12, width: "100%"
-            }}
-            >
-              Sign Out  
-          </button>
-
         ))}
 
+        {/* Sign-out button — outside the map, at the bottom */}
+        <button
+          onClick={handleSignOut}
+          style={{
+            marginTop: "auto",
+            padding: "8px 16px",
+            background: "#0d9488",
+            color: "#fff",
+            border: "none",
+            borderRadius: 6,
+            cursor: "pointer",
+            fontSize: 12,
+            width: "100%",
+          }}
+        >
+          Sign Out
+        </button>
+
         {/* Domain status */}
-        <div className="mt-auto pt-4 border-t border-gray-800 space-y-2">
+        <div className="pt-4 border-t border-gray-800 space-y-2">
           <div className="text-xs text-gray-500 mb-2">Data loaded</div>
           <div className="flex justify-between text-xs">
             <span className="text-blue-400">Ocean</span>
@@ -155,7 +184,7 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Main content */}
+      {/* ── Main content ─────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto p-6">
 
         {/* DASHBOARD */}
@@ -166,12 +195,12 @@ export default function Home() {
             {/* 6 stat cards */}
             <div className="grid grid-cols-3 gap-4">
               {[
-                { label: "Ocean readings", value: crossDomain?.oceanography?.total, sub: `Avg temp: ${crossDomain?.oceanography?.avg_temp ?? "—"}°C`, color: "text-blue-400" },
-                { label: "Fisheries records", value: crossDomain?.fisheries?.total, sub: `Total catch: ${crossDomain?.fisheries?.total_catch_kg ?? "—"} kg`, color: "text-teal-400" },
-                { label: "Species observations", value: crossDomain?.biodiversity?.total, sub: `${crossDomain?.biodiversity?.unique_species ?? "—"} unique species`, color: "text-purple-400" },
-                { label: "Anomalies flagged", value: anomalies?.anomalies_found, sub: "Depth outliers", color: "text-orange-400" },
-                { label: "Avg chlorophyll", value: crossDomain?.oceanography?.avg_chlorophyll, sub: "mg/m³", color: "text-green-400" },
-                { label: "Avg salinity", value: crossDomain?.oceanography?.avg_salinity, sub: "ppt", color: "text-cyan-400" },
+                { label: "Ocean readings",       value: crossDomain?.oceanography?.total,        sub: `Avg temp: ${crossDomain?.oceanography?.avg_temp ?? "—"}°C`,           color: "text-blue-400"   },
+                { label: "Fisheries records",    value: crossDomain?.fisheries?.total,           sub: `Total catch: ${crossDomain?.fisheries?.total_catch_kg ?? "—"} kg`,    color: "text-teal-400"   },
+                { label: "Species observations", value: crossDomain?.biodiversity?.total,        sub: `${crossDomain?.biodiversity?.unique_species ?? "—"} unique species`,   color: "text-purple-400" },
+                { label: "Anomalies flagged",    value: anomalies?.anomalies_found,              sub: "Depth outliers",                                                      color: "text-orange-400" },
+                { label: "Avg chlorophyll",      value: crossDomain?.oceanography?.avg_chlorophyll, sub: "mg/m³",                                                           color: "text-green-400"  },
+                { label: "Avg salinity",         value: crossDomain?.oceanography?.avg_salinity, sub: "ppt",                                                                color: "text-cyan-400"   },
               ].map((card, i) => (
                 <div key={i} className="bg-gray-900 border border-gray-800 rounded-xl p-5">
                   <div className={`text-3xl font-bold ${card.color}`}>{card.value ?? "..."}</div>
@@ -181,7 +210,7 @@ export default function Home() {
               ))}
             </div>
 
-            {/* Top species */}
+            {/* Top species table */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
               <h2 className="text-lg font-medium mb-4">Top Species by Observations</h2>
               <table className="w-full text-sm">
@@ -231,13 +260,19 @@ export default function Home() {
                     </div>
                   ))}
                 </div>
-              ) : <div className="text-gray-500 text-sm">Upload overlapping oceanography + fisheries CSVs to see this correlation.</div>}
+              ) : (
+                <div className="text-gray-500 text-sm">
+                  Upload overlapping oceanography + fisheries CSVs to see this correlation.
+                </div>
+              )}
             </div>
 
             {/* Species environment */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
               <h2 className="text-lg font-medium mb-1">Species Environmental Preferences</h2>
-              <p className="text-gray-500 text-xs mb-4">Temperature, salinity and chlorophyll conditions where each species was observed</p>
+              <p className="text-gray-500 text-xs mb-4">
+                Temperature, salinity and chlorophyll conditions where each species was observed
+              </p>
               {speciesEnv?.data ? (
                 <table className="w-full text-sm">
                   <thead>
@@ -264,13 +299,19 @@ export default function Home() {
                     ))}
                   </tbody>
                 </table>
-              ) : <div className="text-gray-500 text-sm">Upload overlapping biodiversity + oceanography CSVs to see species preferences.</div>}
+              ) : (
+                <div className="text-gray-500 text-sm">
+                  Upload overlapping biodiversity + oceanography CSVs to see species preferences.
+                </div>
+              )}
             </div>
 
             {/* Fishing pressure */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
               <h2 className="text-lg font-medium mb-1">Fishing Pressure by Zone</h2>
-              <p className="text-gray-500 text-xs mb-4">CPUE = catch per unit effort (kg/hr) — lower means more pressure on the stock</p>
+              <p className="text-gray-500 text-xs mb-4">
+                CPUE = catch per unit effort (kg/hr) — lower means more pressure on the stock
+              </p>
               {fishingPressure?.data ? (
                 <table className="w-full text-sm">
                   <thead>
@@ -298,11 +339,13 @@ export default function Home() {
                     ))}
                   </tbody>
                 </table>
-              ) : <div className="text-gray-500 text-sm">Upload fisheries CSV with zone and effort data.</div>}
+              ) : (
+                <div className="text-gray-500 text-sm">Upload fisheries CSV with zone and effort data.</div>
+              )}
             </div>
           </div>
         )}
-        
+
         {/* TRENDS */}
         {activeTab === "trends" && (
           <div className="space-y-5">
@@ -315,15 +358,18 @@ export default function Home() {
           </div>
         )}
 
-
-
-
         {/* MAP */}
         {activeTab === "map" && (
           <div className="space-y-4">
             <h1 className="text-2xl font-semibold">Ocean Data Map</h1>
-            <p className="text-gray-500 text-sm">Real GPS coordinates from uploaded datasets. Switch layers to see species, temperature, and catch locations.</p>
-            <div className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden" style={{ height: "650px" }}>
+            <p className="text-gray-500 text-sm">
+              Real GPS coordinates from uploaded datasets. Switch layers to see species,
+              temperature, and catch locations.
+            </p>
+            <div
+              className="bg-gray-900 border border-gray-800 rounded-xl overflow-hidden"
+              style={{ height: "650px" }}
+            >
               <OceanMap observations={observations} />
             </div>
           </div>
@@ -362,7 +408,7 @@ export default function Home() {
             </div>
           </div>
         )}
-        
+
         {/* ML PREDICTIONS */}
         {activeTab === "predictions" && (
           <div className="space-y-5">
@@ -405,7 +451,13 @@ export default function Home() {
             {/* Stock predictions table */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
               <h2 className="text-lg font-medium mb-1">Stock Health Predictions</h2>
-              <p className="text-gray-500 text-xs mb-4">XGBoost model trained on {stockPredictions?.predictions_count ? `${stockPredictions.predictions_count * 37} samples` : "current data"} — predicts CPUE (catch per unit effort)</p>
+              <p className="text-gray-500 text-xs mb-4">
+                XGBoost model trained on{" "}
+                {stockPredictions?.predictions_count
+                  ? `${stockPredictions.predictions_count * 37} samples`
+                  : "current data"}{" "}
+                — predicts CPUE (catch per unit effort)
+              </p>
               {stockPredictions?.predictions ? (
                 <table className="w-full text-sm">
                   <thead>
@@ -447,9 +499,11 @@ export default function Home() {
                         </td>
                         <td className="py-3 text-right">
                           <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                            p.depletion_risk === "high" ? "bg-red-900 text-red-300" :
-                            p.depletion_risk === "medium" ? "bg-yellow-900 text-yellow-300" :
-                            "bg-green-900 text-green-300"
+                            p.depletion_risk === "high"
+                              ? "bg-red-900 text-red-300"
+                              : p.depletion_risk === "medium"
+                              ? "bg-yellow-900 text-yellow-300"
+                              : "bg-green-900 text-green-300"
                           }`}>
                             {p.depletion_risk}
                           </span>
@@ -462,7 +516,11 @@ export default function Home() {
                 <div className="text-center py-8">
                   <div className="text-gray-500 text-sm mb-3">No predictions yet</div>
                   <button
-                    onClick={() => API.get("/ml/train").then(() => API.get("/ml/predict/stock").then(r => setStockPredictions(r.data)))}
+                    onClick={() =>
+                      API.get("/ml/train").then(() =>
+                        API.get("/ml/predict/stock").then(r => setStockPredictions(r.data))
+                      )
+                    }
                     className="bg-purple-600 hover:bg-purple-500 text-white px-4 py-2 rounded-lg text-sm"
                   >
                     Train model and predict
@@ -474,7 +532,9 @@ export default function Home() {
             {/* Habitat suitability */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
               <h2 className="text-lg font-medium mb-1">Habitat Suitability Scores</h2>
-              <p className="text-gray-500 text-xs mb-4">How well each fishing zone matches each species' preferred environmental conditions</p>
+              <p className="text-gray-500 text-xs mb-4">
+                How well each fishing zone matches each species' preferred environmental conditions
+              </p>
               {habitatScores?.habitat_scores ? (
                 <div className="grid grid-cols-2 gap-3">
                   {habitatScores.habitat_scores.slice(0, 12).map((h: any, i: number) => (
@@ -482,50 +542,82 @@ export default function Home() {
                       <div className="flex-1 min-w-0">
                         <div className="text-teal-300 italic text-xs truncate">{h.species_name}</div>
                         <div className="text-gray-500 text-xs">{h.common_name ?? "—"} · {h.zone}</div>
-                        <div className="text-gray-600 text-xs mt-0.5">{h.pref_temp_c}°C pref / {h.zone_temp_c}°C zone</div>
+                        <div className="text-gray-600 text-xs mt-0.5">
+                          {h.pref_temp_c}°C pref / {h.zone_temp_c}°C zone
+                        </div>
                       </div>
                       <div className="text-right flex-shrink-0">
                         <div className={`text-lg font-bold ${
-                          h.suitability_score >= 80 ? "text-green-400" :
-                          h.suitability_score >= 60 ? "text-yellow-400" : "text-red-400"
-                        }`}>{h.suitability_score}%</div>
+                          h.suitability_score >= 80
+                            ? "text-green-400"
+                            : h.suitability_score >= 60
+                            ? "text-yellow-400"
+                            : "text-red-400"
+                        }`}>
+                          {h.suitability_score}%
+                        </div>
                         <div className={`text-xs ${
-                          h.rating === "excellent" ? "text-green-500" :
-                          h.rating === "good" ? "text-yellow-500" : "text-red-500"
-                        }`}>{h.rating}</div>
+                          h.rating === "excellent"
+                            ? "text-green-500"
+                            : h.rating === "good"
+                            ? "text-yellow-500"
+                            : "text-red-500"
+                        }`}>
+                          {h.rating}
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="text-gray-500 text-sm">Upload biodiversity + oceanography CSVs from the same region to generate habitat scores.</div>
+                <div className="text-gray-500 text-sm">
+                  Upload biodiversity + oceanography CSVs from the same region to generate habitat scores.
+                </div>
               )}
             </div>
           </div>
         )}
 
-
-
-
-
-
         {/* UPLOAD */}
         {activeTab === "upload" && (
           <div className="space-y-5">
             <h1 className="text-2xl font-semibold">Upload Dataset</h1>
-            <p className="text-gray-400 text-sm">Upload CSV files for each domain. The platform auto-detects columns and links datasets by location and date.</p>
+            <p className="text-gray-400 text-sm">
+              Upload CSV files for each domain. The platform auto-detects columns and links
+              datasets by location and date.
+            </p>
 
             <div className="grid grid-cols-3 gap-4">
               {[
-                { domain: "oceanography", label: "Oceanography", color: "border-blue-600", desc: "temperature, salinity, depth, chlorophyll, dissolved_oxygen, ph", example: "date, lat, lon, temperature_c, salinity_ppt..." },
-                { domain: "fisheries", label: "Fisheries", color: "border-teal-600", desc: "catch records, effort, vessel, gear type, fishing zone", example: "date, lat, lon, species_name, catch_kg, effort_hours..." },
-                { domain: "biodiversity", label: "Biodiversity", color: "border-purple-600", desc: "species occurrences, abundance, habitat, survey method", example: "date, lat, lon, species_name, common_name, abundance..." },
+                {
+                  domain: "oceanography",
+                  label: "Oceanography",
+                  color: "border-blue-600",
+                  desc: "temperature, salinity, depth, chlorophyll, dissolved_oxygen, ph",
+                  example: "date, lat, lon, temperature_c, salinity_ppt...",
+                },
+                {
+                  domain: "fisheries",
+                  label: "Fisheries",
+                  color: "border-teal-600",
+                  desc: "catch records, effort, vessel, gear type, fishing zone",
+                  example: "date, lat, lon, species_name, catch_kg, effort_hours...",
+                },
+                {
+                  domain: "biodiversity",
+                  label: "Biodiversity",
+                  color: "border-purple-600",
+                  desc: "species occurrences, abundance, habitat, survey method",
+                  example: "date, lat, lon, species_name, common_name, abundance...",
+                },
               ].map(({ domain, label, color, desc, example }) => (
                 <div key={domain} className={`bg-gray-900 border ${color} border-2 rounded-xl p-5`}>
                   <h3 className="font-medium mb-2">{label}</h3>
                   <p className="text-gray-500 text-xs mb-3">{desc}</p>
                   <p className="text-gray-700 text-xs font-mono mb-4">{example}</p>
-                  <label className={`block w-full text-center py-3 rounded-lg border ${color} border-dashed cursor-pointer hover:bg-gray-800 text-sm text-gray-400 transition-all`}>
+                  <label
+                    className={`block w-full text-center py-3 rounded-lg border ${color} border-dashed cursor-pointer hover:bg-gray-800 text-sm text-gray-400 transition-all`}
+                  >
                     {uploading === domain ? "Uploading..." : "Drop CSV or click to browse"}
                     <input
                       type="file"
@@ -542,15 +634,32 @@ export default function Home() {
             </div>
 
             {uploadResult && (
-              <div className={`rounded-xl p-5 border ${uploadResult.error ? "border-red-700 bg-red-950" : "border-green-700 bg-green-950"}`}>
+              <div
+                className={`rounded-xl p-5 border ${
+                  uploadResult.error
+                    ? "border-red-700 bg-red-950"
+                    : "border-green-700 bg-green-950"
+                }`}
+              >
                 {uploadResult.error ? (
                   <div className="text-red-400">{uploadResult.error}</div>
                 ) : (
                   <div className="space-y-1 text-sm">
-                    <div className="text-green-400 font-medium">Successfully uploaded {uploadResult.domain} data</div>
-                    <div className="text-gray-400">Rows in file: <span className="text-white">{uploadResult.rows_in_file}</span></div>
-                    <div className="text-gray-400">Saved to database: <span className="text-white">{uploadResult.saved}</span></div>
-                    <div className="text-gray-400">Columns detected: <span className="text-white font-mono text-xs">{uploadResult.columns_detected?.join(", ")}</span></div>
+                    <div className="text-green-400 font-medium">
+                      Successfully uploaded {uploadResult.domain} data
+                    </div>
+                    <div className="text-gray-400">
+                      Rows in file: <span className="text-white">{uploadResult.rows_in_file}</span>
+                    </div>
+                    <div className="text-gray-400">
+                      Saved to database: <span className="text-white">{uploadResult.saved}</span>
+                    </div>
+                    <div className="text-gray-400">
+                      Columns detected:{" "}
+                      <span className="text-white font-mono text-xs">
+                        {uploadResult.columns_detected?.join(", ")}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -563,7 +672,9 @@ export default function Home() {
           <div className="space-y-4">
             <h1 className="text-2xl font-semibold">AI Research Assistant</h1>
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-5">
-              <p className="text-gray-400 text-sm mb-4">Ask any question about the ocean data in plain English.</p>
+              <p className="text-gray-400 text-sm mb-4">
+                Ask any question about the ocean data in plain English.
+              </p>
               <div className="flex gap-3">
                 <input
                   className="flex-1 bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-teal-500"
@@ -572,11 +683,15 @@ export default function Home() {
                   onChange={e => setQuestion(e.target.value)}
                   onKeyDown={e => e.key === "Enter" && handleAsk()}
                 />
-                <button onClick={handleAsk} disabled={asking}
-                  className="bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 text-white px-5 py-2 rounded-lg text-sm transition-all">
+                <button
+                  onClick={handleAsk}
+                  disabled={asking}
+                  className="bg-teal-600 hover:bg-teal-500 disabled:bg-gray-700 text-white px-5 py-2 rounded-lg text-sm transition-all"
+                >
                   {asking ? "Thinking..." : "Ask"}
                 </button>
               </div>
+
               <div className="flex flex-wrap gap-2 mt-3">
                 {[
                   "Which whale species are in the database",
@@ -585,8 +700,11 @@ export default function Home() {
                   "Which fishing zone has highest catch",
                   "Average temperature in the dataset",
                 ].map(q => (
-                  <button key={q} onClick={() => setQuestion(q)}
-                    className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-1 rounded-full border border-gray-700">
+                  <button
+                    key={q}
+                    onClick={() => setQuestion(q)}
+                    className="text-xs bg-gray-800 hover:bg-gray-700 text-gray-400 px-3 py-1 rounded-full border border-gray-700"
+                  >
                     {q}
                   </button>
                 ))}
@@ -606,16 +724,21 @@ export default function Home() {
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="text-gray-500 border-b border-gray-800">
-                          {answer.results?.[0] && Object.keys(answer.results[0]).map((k: string) => (
-                            <th key={k} className="text-left pb-2 capitalize">{k.replace(/_/g, " ")}</th>
-                          ))}
+                          {answer.results?.[0] &&
+                            Object.keys(answer.results[0]).map((k: string) => (
+                              <th key={k} className="text-left pb-2 capitalize">
+                                {k.replace(/_/g, " ")}
+                              </th>
+                            ))}
                         </tr>
                       </thead>
                       <tbody>
                         {answer.results?.map((row: any, i: number) => (
                           <tr key={i} className="border-b border-gray-800 hover:bg-gray-800">
                             {Object.values(row).map((v: any, j: number) => (
-                              <td key={j} className="py-2 text-gray-300">{v ?? "—"}</td>
+                              <td key={j} className="py-2 text-gray-300">
+                                {v ?? "—"}
+                              </td>
                             ))}
                           </tr>
                         ))}
@@ -627,6 +750,7 @@ export default function Home() {
             )}
           </div>
         )}
+
       </div>
     </div>
   );
