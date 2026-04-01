@@ -1,15 +1,33 @@
 "use client";
-// Auth check — redirect to login if not authenticated
+const [authChecked, setAuthChecked] = useState(false);
+
 useEffect(() => {
   const token = localStorage.getItem("ocean_token");
   if (!token) {
-    window.location.href = "/login";
+    window.location.replace("/login");
+  } else {
+    setAuthChecked(true);
   }
 }, []);
 
+if (!authChecked) {
+  return (
+    <div style={{
+      minHeight: "100vh", background: "#021526",
+      display: "flex", alignItems: "center", justifyContent: "center",
+      color: "#2dd4bf", fontSize: 18, fontFamily: "sans-serif"
+    }}>
+      <div style={{ textAlign: "center" }}>
+        <div style={{ fontSize: 40, marginBottom: 12 }}>🌊</div>
+        <div>Loading OceanAI...</div>
+      </div>
+    </div>
+  );
+}
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import axios from "axios";
+import { useState, useEffect } from "react";
 
 const OceanMap = dynamic(() => import("./components/OceanMap"), { ssr: false });
 const TimeSeriesCharts = dynamic(() => import("./components/TimeSeriesCharts"), { ssr: false });
